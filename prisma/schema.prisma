@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum GradingScale {
+  FIVE_POINT
+  FOUR_POINT
+}
+
+enum Role {
+  STUDENT
+  ADMIN
+  CONTRIBUTOR
+}
+
+enum ContributionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model School {
+  id           String       @id @default(cuid())
+  name         String       @unique
+  shortName    String?
+  country      String       @default("Nigeria")
+  gradingScale GradingScale @default(FIVE_POINT)
+  isVerified   Boolean      @default(false)
+  faculties    Faculty[]
+  students     Student[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Faculty {
+  id          String       @id @default(cuid())
+  name        String
+  shortName   String?
+  schoolId    String
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  departments Department[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([name, schoolId])
+}
+
+model Department {
+  id        String    @id @default(cuid())
+  name      String
+  shortName String?
+  facultyId String
+  faculty   Faculty   @relation(fields: [facultyId], references: [id], onDelete: Cascade)
+  levels    Level[]
+  students  Student[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@unique([name, facultyId])
+}
+
+model Level {
+  id           String     @id @default(cuid())
+  number       Int
+  departmentId String
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  semesters    Semester[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  @@unique([number, departmentId])
+}
+
+model Semester {
+  id        String   @id @default(cuid())
+  number    Int
+  levelId   String
+  level     Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  courses   Course[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([number, levelId])
+}
+
+model Course {
+  id           String         @id @default(cuid())
+  code         String
+  title        String
+  units        Int
+  isCompulsory Boolean        @default(true)
+  semesterId   String
+  semester     Semester       @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  outline      CourseOutline?
+  gradeRecords GradeRecord[]
+  ratings      CourseRating[]
+  isVerified   Boolean        @default(false)
+  status       ContributionStatus @default(APPROVED)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@unique([code, semesterId])
+}
+
+model CourseOutline {
+  id        String   @id @default(cuid())
+  courseId  String   @unique
+  course    Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  topics    Json
+  resources Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  password     String
+  role         Role      @default(STUDENT)
+  refreshToken String?
+  student      Student?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+model Student {
+  id              String        @id @default(cuid())
+  userId          String        @unique
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name            String
+  matricYear      Int?
+  schoolId        String
+  school          School        @relation(fields: [schoolId], references: [id])
+  departmentId    String
+  department      Department    @relation(fields: [departmentId], references: [id])
+  currentLevel    Int           @default(100)
+  targetGrade     String?
+  targetCgpa      Float?
+  gradeRecords    GradeRecord[]
+  studyPlans      StudyPlan[]
+  semesterRecords SemesterRecord[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model SemesterRecord {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  level       Int
+  semester    Int
+  year        Int
+  gpa         Float
+  totalUnits  Int
+  gradeRecords GradeRecord[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([studentId, level, semester, year])
+}
+
+model GradeRecord {
+  id               String          @id @default(cuid())
+  studentId        String
+  student          Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  courseId         String
+  course           Course          @relation(fields: [courseId], references: [id])
+  semesterRecordId String?
+  semesterRecord   SemesterRecord? @relation(fields: [semesterRecordId], references: [id])
+  grade            String
+  gradePoint       Float
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@unique([studentId, courseId])
+}
+
+model StudyPlan {
+  id          String   @id @default(cuid())
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  targetGrade String
+  targetCgpa  Float
+  plan        Json
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CourseRating {
+  id         String   @id @default(cuid())
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  difficulty Float
+  quality     Float
+  tips       String?
+  anonymous  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+}
