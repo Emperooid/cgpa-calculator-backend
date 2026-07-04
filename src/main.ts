@@ -5,6 +5,15 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Log every HTTP request so Render logs are useful
+  app.use((req: any, res: any, next: any) => {
+    const start = Date.now();
+    res.on('finish', () => {
+      console.log(`${req.method} ${req.originalUrl} ${res.statusCode} +${Date.now() - start}ms  origin:${req.headers.origin ?? 'none'}`);
+    });
+    next();
+  });
+
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   const explicitOrigins = (process.env.FRONTEND_URL ?? '')
     .split(',')
@@ -32,7 +41,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  console.log(`CGPA API running on http://localhost:${port}/api`);
+  console.log(`CGPA API running — port ${port} — env:${process.env.NODE_ENV ?? 'development'}`);
 }
 
 bootstrap();
