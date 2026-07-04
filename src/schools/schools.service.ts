@@ -50,7 +50,6 @@ export class SchoolsService {
       },
       include: {
         courses: {
-          where: { isVerified: true },
           orderBy: { code: 'asc' },
         },
       },

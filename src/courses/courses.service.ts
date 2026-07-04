@@ -10,7 +10,7 @@ export class CoursesService {
     const sem = await this.prisma.semester.findFirst({
       where: { number: semester, level: { number: level, departmentId } },
       include: {
-        courses: { where: { isVerified: true }, orderBy: { code: 'asc' } },
+        courses: { orderBy: { code: 'asc' } },
       },
     });
     return sem?.courses ?? [];
@@ -34,7 +34,7 @@ export class CoursesService {
     }
 
     return this.prisma.course.create({
-      data: { ...courseData, semesterId: sem.id, isVerified: false },
+      data: { ...courseData, semesterId: sem.id, isVerified: true },
     });
   }
 
