@@ -89,6 +89,34 @@ export class AuthService {
     }
   }
 
+  async registerAnonymous() {
+    const { randomUUID } = await import('crypto');
+    const anonEmail = `anon_${randomUUID()}@gradepath.local`;
+    const anonPassword = randomUUID();
+    const hashed = await bcrypt.hash(anonPassword, 10);
+    const user = await this.prisma.user.create({
+      data: { email: anonEmail, password: hashed },
+      include: { student: true },
+    });
+    const tokens = await this.generateTokens(user.id, user.email);
+    await this.saveRefreshToken(user.id, tokens.refreshToken);
+    return { user: this.sanitize(user), ...tokens };
+  }
+
+  async claimAccount(userId: string, email: string, password: string) {
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) throw new ConflictException('Email already registered');
+    const hashed = await bcrypt.hash(password, 10);
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: { email, password: hashed },
+      include: {
+        student: { include: { school: true, department: { include: { faculty: true } } } },
+      },
+    });
+    return this.sanitize(updated);
+  }
+
   async logout(userId: string) {
     await this.prisma.user.update({
       where: { id: userId },

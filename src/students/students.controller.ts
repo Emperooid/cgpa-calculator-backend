@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { StudentsService } from './students.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
@@ -6,6 +6,15 @@ import { CurrentUser } from '../common/decorators/user.decorator';
 @Controller('students')
 export class StudentsController {
   constructor(private students: StudentsService) {}
+
+  @UseGuards(JwtAuthGuard)
+  @Post('profile')
+  createProfile(
+    @CurrentUser() user: any,
+    @Body() body: { name: string; schoolId: string; departmentId: string; currentLevel: number; matricYear?: number },
+  ) {
+    return this.students.createProfile(user.id, body);
+  }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')

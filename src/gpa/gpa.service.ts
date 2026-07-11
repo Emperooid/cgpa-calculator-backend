@@ -187,6 +187,15 @@ export class GpaService {
     };
   }
 
+  async deleteSemesterRecord(studentId: string, semesterRecordId: string) {
+    const record = await this.prisma.semesterRecord.findUnique({ where: { id: semesterRecordId } });
+    if (!record || record.studentId !== studentId) throw new NotFoundException('Semester record not found');
+    await this.prisma.gradeRecord.deleteMany({ where: { semesterRecordId } });
+    await this.prisma.semesterRecord.delete({ where: { id: semesterRecordId } });
+    const newCgpa = await this.computeCgpa(studentId);
+    return { deleted: true, newCgpa };
+  }
+
   async getPrediction(studentId: string, targetCgpa: number, totalProgramUnits: number) {
     const student = await this.prisma.student.findUnique({
       where: { id: studentId },

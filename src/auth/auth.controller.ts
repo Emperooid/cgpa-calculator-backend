@@ -15,6 +15,20 @@ export class AuthController {
     return this.auth.register(dto);
   }
 
+  @Post('anonymous')
+  registerAnonymous() {
+    return this.auth.registerAnonymous();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('claim')
+  claimAccount(
+    @CurrentUser() user: any,
+    @Body() body: { email: string; password: string },
+  ) {
+    return this.auth.claimAccount(user.id, body.email, body.password);
+  }
+
   @Post('login')
   login(@Body() dto: LoginDto) {
     return this.auth.login(dto);

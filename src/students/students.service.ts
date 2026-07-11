@@ -22,6 +22,22 @@ export class StudentsService {
     return this.prisma.student.update({ where: { id: studentId }, data });
   }
 
+  async createProfile(userId: string, data: {
+    name: string;
+    schoolId: string;
+    departmentId: string;
+    currentLevel: number;
+    matricYear?: number;
+  }) {
+    return this.prisma.student.create({
+      data: { userId, ...data },
+      include: {
+        school: true,
+        department: { include: { faculty: true } },
+      },
+    });
+  }
+
   async getGradeHistory(studentId: string) {
     return this.prisma.semesterRecord.findMany({
       where: { studentId },

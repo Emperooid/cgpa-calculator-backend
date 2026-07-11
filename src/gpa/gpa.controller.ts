@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { GpaService } from './gpa.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
@@ -49,6 +49,12 @@ export class GpaController {
     @Query('totalProgramUnits') totalProgramUnits: string,
   ) {
     return this.gpa.getPrediction(user.student.id, +targetCgpa, +totalProgramUnits);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Delete('semester/:id')
+  deleteSemester(@CurrentUser() user: any, @Param('id') id: string) {
+    return this.gpa.deleteSemesterRecord(user.student.id, id);
   }
 
   @Post('predict/quick')
