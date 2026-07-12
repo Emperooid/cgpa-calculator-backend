@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { GpaService } from './gpa.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/user.decorator';
@@ -26,6 +26,7 @@ export class GpaController {
       grades: { courseId: string; grade: string }[];
     },
   ) {
+    if (!user.student) throw new NotFoundException('Student profile not set up');
     return this.gpa.submitSemesterGrades(
       user.student.id,
       body.level,
@@ -38,6 +39,18 @@ export class GpaController {
   @UseGuards(JwtAuthGuard)
   @Get('analytics')
   getAnalytics(@CurrentUser() user: any) {
+    if (!user.student) {
+      return {
+        cgpa: 0,
+        currentClass: 'N/A',
+        semesterTrend: [],
+        gradeDistribution: { A: 0, B: 0, C: 0, D: 0, E: 0, F: 0 },
+        strongestCourse: null,
+        weakestCourse: null,
+        totalUnitsCompleted: 0,
+        chances: [],
+      };
+    }
     return this.gpa.getStudentAnalytics(user.student.id);
   }
 
@@ -48,12 +61,14 @@ export class GpaController {
     @Query('targetCgpa') targetCgpa: string,
     @Query('totalProgramUnits') totalProgramUnits: string,
   ) {
+    if (!user.student) throw new NotFoundException('Student profile not set up');
     return this.gpa.getPrediction(user.student.id, +targetCgpa, +totalProgramUnits);
   }
 
   @UseGuards(JwtAuthGuard)
   @Delete('semester/:id')
   deleteSemester(@CurrentUser() user: any, @Param('id') id: string) {
+    if (!user.student) throw new NotFoundException('Student profile not set up');
     return this.gpa.deleteSemesterRecord(user.student.id, id);
   }
 
