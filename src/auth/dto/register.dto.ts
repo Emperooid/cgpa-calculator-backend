@@ -25,5 +25,7 @@ export class RegisterDto {
 
   @IsOptional()
   @IsInt()
+  @Min(100)
+  @Max(700)
   currentLevel?: number;
 }

@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { DepartmentsService } from './departments.service';
 import { CreateDepartmentDto } from './dto/create-department.dto';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @Controller('departments')
 export class DepartmentsController {
@@ -16,6 +17,7 @@ export class DepartmentsController {
     return this.departments.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post()
   create(@Body() dto: CreateDepartmentDto) {
     return this.departments.create(dto);

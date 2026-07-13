@@ -1,9 +1,13 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
+import helmet from 'helmet';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  // Security headers
+  app.use(helmet());
 
   // Log every HTTP request so Render logs are useful
   app.use((req: any, res: any, next: any) => {
@@ -14,22 +18,22 @@ async function bootstrap() {
     next();
   });
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  const explicitOrigins = (process.env.FRONTEND_URL ?? '')
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true, forbidNonWhitelisted: true }));
+
+  // Only allow explicitly listed origins — set FRONTEND_URL on Render (comma-separated for multiple)
+  const allowedOrigins = (process.env.FRONTEND_URL ?? '')
     .split(',')
     .map(u => u.trim())
     .filter(Boolean);
 
+  const devOrigins = process.env.NODE_ENV !== 'production'
+    ? ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002', 'http://localhost:3003']
+    : [];
+
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-      const allowed = [
-        ...explicitOrigins,
-        'http://localhost:3000',
-        'http://localhost:3001',
-        'http://localhost:3002',
-        'http://localhost:3003',
-      ];
-      if (!origin || allowed.includes(origin) || /\.vercel\.app$/.test(origin)) {
+      const allowed = [...allowedOrigins, ...devOrigins];
+      if (!origin || allowed.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error(`CORS: origin ${origin} not allowed`));

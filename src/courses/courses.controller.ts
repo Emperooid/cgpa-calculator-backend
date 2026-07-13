@@ -1,7 +1,23 @@
 import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
+import { IsBoolean, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Type } from 'class-transformer';
 import { CoursesService } from './courses.service';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+
+class BulkCourseItem {
+  @IsString() code: string;
+  @IsString() title: string;
+  @IsInt() @Min(1) @Max(6) @Type(() => Number) units: number;
+  @IsOptional() @IsBoolean() isCompulsory?: boolean;
+}
+
+class BulkCreateBody {
+  @IsString() departmentId: string;
+  @IsInt() @Type(() => Number) level: number;
+  @IsInt() @Min(1) @Max(2) @Type(() => Number) semester: number;
+  courses: BulkCourseItem[];
+}
 
 @Controller('courses')
 export class CoursesController {
@@ -24,9 +40,7 @@ export class CoursesController {
 
   @UseGuards(JwtAuthGuard)
   @Post('bulk')
-  bulkCreate(
-    @Body() body: { departmentId: string; level: number; semester: number; courses: any[] },
-  ) {
+  bulkCreate(@Body() body: BulkCreateBody) {
     return this.courses.bulkCreate(body.departmentId, body.level, body.semester, body.courses);
   }
 
