@@ -39,6 +39,58 @@ export class GpaService {
     };
   }
 
+  private generatePathways(
+    currentCgpa: number,
+    totalUnitsDone: number,
+    targetCgpa: number,
+    remainingUnits: number,
+    scale: 'FIVE_POINT' | 'FOUR_POINT' = 'FIVE_POINT',
+  ) {
+    const gradePoints = scale === 'FIVE_POINT' ? GRADE_POINTS_5 : GRADE_POINTS_4;
+    const totalUnits = totalUnitsDone + remainingUnits;
+    const earnedQP = currentCgpa * totalUnitsDone;
+
+    const defs = [
+      {
+        name: 'Conservative',
+        hint: "Mostly A grades — push hard every semester",
+        mix: [{ grade: 'A', pct: 0.80 }, { grade: 'B', pct: 0.20 }],
+      },
+      {
+        name: 'Balanced',
+        hint: "A grades in heavy courses, B's in lighter ones",
+        mix: [{ grade: 'A', pct: 0.60 }, { grade: 'B', pct: 0.30 }, { grade: 'C', pct: 0.10 }],
+      },
+      {
+        name: 'Flexible',
+        hint: 'Consistent B+ performance across all courses',
+        mix: [{ grade: 'A', pct: 0.45 }, { grade: 'B', pct: 0.45 }, { grade: 'C', pct: 0.10 }],
+      },
+    ];
+
+    return defs.map(p => {
+      const avgGPA = p.mix.reduce(
+        (acc, { grade, pct }) => acc + (gradePoints[grade] ?? 0) * pct,
+        0,
+      );
+      const projectedCgpa = parseFloat(
+        ((earnedQP + avgGPA * remainingUnits) / totalUnits).toFixed(2),
+      );
+      return {
+        name: p.name,
+        hint: p.hint,
+        avgSemesterGPA: parseFloat(avgGPA.toFixed(2)),
+        projectedCgpa,
+        achievesTarget: projectedCgpa >= targetCgpa,
+        gradeUnits: p.mix.map(({ grade, pct }) => ({
+          grade,
+          units: Math.round(pct * remainingUnits),
+          pct: Math.round(pct * 100),
+        })),
+      };
+    });
+  }
+
   predictRequiredGPA(
     currentCgpa: number,
     totalUnitsDone: number,
@@ -73,6 +125,7 @@ export class GpaService {
       message: isPossible
         ? `You need an average GPA of ${requiredGPA.toFixed(2)} over the remaining ${remainingUnits} units.`
         : `Even with all A's, the maximum CGPA you can achieve is ${maxAchievableCgpa}. Your target of ${targetCgpa} is not achievable.`,
+      pathways: this.generatePathways(currentCgpa, totalUnitsDone, targetCgpa, remainingUnits, scale),
     };
   }
 
@@ -170,10 +223,31 @@ export class GpaService {
     const sortedByGP = [...student.gradeRecords].sort((a, b) => b.gradePoint - a.gradePoint);
     const currentClass = GRADE_CLASS.find(g => cgpa >= g.min)?.label ?? 'Fail';
 
-    const chances = GRADE_CLASS.map(g => ({
-      class: g.label,
-      possible: cgpa >= g.min || true,
-    }));
+    // Estimate remaining units (assume 180-unit degree; at least 30 remaining to avoid div-by-zero)
+    const totalUnitsDone = student.semesterRecords.reduce((a, r) => a + r.totalUnits, 0);
+    const totalProgramUnits = Math.max(totalUnitsDone + 30, 180);
+    const remainingEst = totalProgramUnits - totalUnitsDone;
+
+    const chances = GRADE_CLASS.map(g => {
+      const reqGPA = (g.min * totalProgramUnits - cgpa * totalUnitsDone) / remainingEst;
+      const maxGP = 5;
+      let probability: number;
+      if (cgpa >= g.min) {
+        probability = 100;
+      } else if (reqGPA > maxGP) {
+        probability = 0;
+      } else {
+        // reqGPA=3.5 → ~90%, reqGPA=5.0 → ~8%
+        const normalized = Math.max(0, (maxGP - reqGPA) / (maxGP - 3.5));
+        probability = Math.min(92, Math.max(8, Math.round(normalized * 84 + 8)));
+      }
+      return {
+        class: g.label,
+        possible: reqGPA <= maxGP,
+        probability,
+        requiredGPA: parseFloat(Math.max(0, reqGPA).toFixed(2)),
+      };
+    });
 
     return {
       cgpa,
